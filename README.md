@@ -4,7 +4,7 @@ ai绘图安全版
 通过上传图片参数至数据库，来实现快捷的图片预览、图片TAG获取、对应标签的ai图片生成等功能。
 ## 具体操作
 1、下载aidraw_db.py，放到<code>hoshino/modules/aidrawDB</code>文件夹中\
-2、在<code>hoshino/config/__bot__.py</code>文件中，<code>MODULES_ON</code>里添加 "aidrawDB"
+2、在<code>hoshino/config/__bot__.py</code>文件中，<code>MODULES_ON</code>里添加 "aidrawDB"\
 3、<b>打开aidraw_db.py，在17行填入ai绘图的API接口，在18行填入个人token</b>
 ## 功能指令
 |  指令   | 说明  | 具体  |
