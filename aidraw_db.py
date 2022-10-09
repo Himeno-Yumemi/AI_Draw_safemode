@@ -13,6 +13,15 @@ import requests as req
 import sqlite3
 import os
 
+####替换成自己的API URL
+word2img_url = ""   #绘图API接口
+token = ""  #个人token
+
+
+lmt = FreqLimiter(60) #频率限制(s)
+dlmt_ = 20 # 每日次数限制
+dlmt = DailyNumberLimiter(dlmt_)
+
 sv_help = '''
 【AI绘图数据库】
 -[上传[参数]]  上传图片和tag至数据库内，[参数]为ai绘图的指令
@@ -22,7 +31,6 @@ sv_help = '''
 -[删除配方[序号]]  删除炼金配方内容，[序号]为图片标签
 PS:上传仅限管理员使用，删除仅限超级管理员使用
 '''
-
 
 sv = Service(
     name = 'AI绘图数据库',  #功能名
@@ -38,23 +46,16 @@ sv = Service(
 async def bangzhu(bot, ev):
     await bot.send(ev, await wordimage(sv_help), at_sender=True)
 
-####替换成自己的API URL
-word2img_url = ""
-img2img_url = ""
-token = ""
-
-
-lmt = FreqLimiter(60) #频率限制(s)
-dlmt_ = 20 # 每日次数限制
-dlmt = DailyNumberLimiter(dlmt_)
-
 lock = Lock()
 curpath = dirname(__file__)
 image_list_db = join(curpath, 'save_tags.db')   #保存tags数据库
 save_image_path= join(curpath,'SaveImage')  # 保存图片路径
 
+#创建数据库图片存放文件夹
 if not exists(save_image_path):
     os.mkdir(save_image_path)
+
+#创建数据库文件并新建一个aitag表
 if not exists(image_list_db):
     conn = sqlite3.connect(image_list_db)
     cur = conn.cursor()
@@ -219,7 +220,7 @@ async def generate_recipe(bot, ev):
     msg=f"{tags}\nCFG scale: {scale}, Size:{size}"
     cur.close()
     conn.close()
-    await bot.send(ev, f"正在炼金中，请稍后...\n(今日剩余{dlmt_-int(dlmt.get_num(uid))}次)", at_sender=True)
+    await bot.send(ev, f"\n正在炼金中，请稍后...\n(今日剩余{dlmt_-int(dlmt.get_num(uid))}次)", at_sender=True)
     image = await gen_pic(msg)
     await bot.send(ev,image,at_sender=True)
 
@@ -244,7 +245,7 @@ async def delete_recipe(bot, ev):
     cur.execute("DELETE FROM aitag WHERE rowid=?", (rowid,))
     conn.commit()
     cur.execute('vacuum')
-    msg=f"已删除配方{rowid}"
+    msg=f"已删除配方:{rowid}"
     cur.close()
     conn.close()
     await bot.send(ev,msg,at_sender=True)
@@ -256,10 +257,11 @@ async def gen_pic(text):
         image = await res.content
         load_data = json.loads(re.findall('{"steps".+?}', str(image))[0])
         image_b64 = 'base64://' + str(base64.b64encode(image).decode())
-        mes = f"[CQ:image,file={image_b64}]\n"
-        mes += f'seed:{load_data["seed"]}   '
-        mes += f'scale:{load_data["scale"]}\n'
-        mes += f'tags:{text}'
+        mes = f"[CQ:image,file={image_b64}]"
+        mes += f'\nseed:{load_data["seed"]}'
+        
+        """ mes += f'\tscale:{load_data["scale"]}\n'
+        mes += f'tags:{text}' """
         return mes
     except Exception as e:
         return f"炼金失败了,原因:{e}"
