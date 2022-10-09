@@ -217,7 +217,7 @@ async def generate_recipe(bot, ev):
     scale=peifang[0]
     size=peifang[1]
     tags=peifang[2]
-    msg=f"{tags}\nCFG scale: {scale}, Size:{size}"
+    msg=f"{tags}\nCFG scale: {scale}, Size:{size}".replace('&r18=1','')
     cur.close()
     conn.close()
     await bot.send(ev, f"\n正在炼金中，请稍后...\n(今日剩余{dlmt_-int(dlmt.get_num(uid))}次)", at_sender=True)
