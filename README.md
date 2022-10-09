@@ -17,17 +17,17 @@ ai绘图安全版
 PS:上传仅限管理员使用，删除仅限超级管理员使用
 ## 演示
 绘图数据库帮助:
-![image]()
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E7%BB%98%E5%9B%BE%E6%95%B0%E6%8D%AE%E5%BA%93%E5%B8%AE%E5%8A%A9.png)
 上传[参数]:
-![image]()
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E4%B8%8A%E4%BC%A0.png)
 炼金手册[序号]:
-![image]()
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E7%82%BC%E9%87%91%E6%89%8B%E5%86%8C.png)
 查看配方[序号]:
-![image]()
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E6%9F%A5%E7%9C%8B%E9%85%8D%E6%96%B9.png)
 使用配方[序号]:
-![image]()
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E4%BD%BF%E7%94%A8%E9%85%8D%E6%96%B9.png)
 删除配方[序号]:
-![image]()
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E5%88%A0%E9%99%A4%E9%85%8D%E6%96%B9.png)
 ## 鸣谢
 <a href="https://github.com/Mrs4s/go-cqhttp" target="_BLANK">go-cqhttp</a>\
 <a href="https://github.com/Ice-Cirno/HoshinoBot" target="_BLANK">HoshinoBot</a>\
