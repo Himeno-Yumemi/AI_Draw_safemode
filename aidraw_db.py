@@ -2,8 +2,12 @@ from asyncio import Lock
 from os.path import dirname, join, exists
 from hoshino import Service,priv,aiorequests
 from hoshino.util import FreqLimiter, DailyNumberLimiter
+from hoshino.config import NICKNAME
+from hoshino.typing import CQEvent
+from aiocqhttp.exceptions import ActionFailed
 from PIL import Image, ImageDraw,ImageFont
 from io import BytesIO
+
 
 import base64
 import json
@@ -81,8 +85,6 @@ async def upload_header(bot, ev):
         return
     lmt.start_cd(uid,10) """
     async with lock:
-        conn=sqlite3.connect(image_list_db)
-        cur = conn.cursor()
         try:
             for i in ev.message:
                 if i.type == "image":
@@ -123,6 +125,8 @@ async def upload_header(bot, ev):
             await bot.finish(ev, '标签格式出错', at_sender=True)
             return
         try:
+            conn=sqlite3.connect(image_list_db)
+            cur = conn.cursor()
             cur.execute("INSERT INTO aitag VALUES (?,?,?,?,?)",(scale,size,tags,seed,saveconfig))
             conn.commit()
             cur.close()
@@ -130,6 +134,99 @@ async def upload_header(bot, ev):
             await bot.send(ev, f'上传成功！', at_sender=True)
         except Exception as e:
             await bot.send(ev, f"报错:{e}",at_sender=True)
+
+if type(NICKNAME) == str:
+    NICKNAME = [NICKNAME]
+
+@sv.on_message('group')
+async def replymessage(bot, ev: CQEvent):
+    seg=ev.message[0]
+    if seg.type != 'reply':
+        return
+    tmid = seg.data['id']
+    cmd = ev.message.extract_plain_text()
+    flag1 = 0
+    flag2 = 0
+    for m in ev.message[2:]:
+        if m.type == 'at' and m.data['qq'] == ev.self_id:
+            flag1 = 1
+    for name in NICKNAME:
+        if name in cmd:
+            flag1 = 1
+            break
+    for pfcmd in ['上传', '窃取']:
+        if pfcmd in cmd:
+            flag2 = 1
+    if not (flag1 and flag2):
+        return
+    if not priv.check_priv(ev, priv.ADMIN):
+        await bot.finish(ev,f"仅限管理员上传！", at_sender=True)
+        return
+    try:
+        tmsg = await bot.get_msg(self_id=ev.self_id, message_id=int(tmid))
+    except ActionFailed:
+        await bot.finish(ev, '该消息已过期，请重新转发~')
+        return
+    try:
+        image_url = re.search(r"\[CQ:image,file=(.*),url=(.*)\]", str(tmsg["message"]))
+        if not image_url:
+            await bot.send(ev, '未找到图片~')
+            return
+        file = image_url.group(1)
+        pic_url = image_url.group(2)
+        if ',subType=' in pic_url:
+            sbtype=pic_url.split('=')[-1]
+            pic_url = pic_url.split(',')[0]
+        elif ',subType=' in file:
+            sbtype=file.split('=')[-1]
+            file = file.split(',')[0]
+        else:
+            sbtype=None
+        if 'c2cpicdw.qpic.cn/offpic_new/' in pic_url:
+            md5 = file[:-6].upper()
+            pic_url = f"http://gchat.qpic.cn/gchatpic_new/0/0-0-{md5}/0?term=2"
+        response = req.get(pic_url)
+        img = Image.open(BytesIO(response.content)).convert("RGB")
+        ls_f=base64.b64encode(BytesIO(response.content).read())
+        imgdata=base64.b64decode(ls_f)
+        datetime = calendar.timegm(time.gmtime())
+        image_path= './SaveImage/'+str(datetime)+'.png'
+        saveconfig = join(curpath, f'{image_path}')
+        size=f"{img.width}x{img.height}"
+        pic = open(saveconfig, "wb")
+        pic.write(imgdata)
+        pic.close()
+    except:
+        await bot.finish(ev, '图片格式出错', at_sender=True)
+        return
+    try:
+        seed_list1=str(tmsg["message"]).split(f"scale:")
+        seed_list2=seed_list1[0].split('eed:')
+        seed=seed_list2[1].strip ()
+    except:
+        await bot.finish(ev, '种子格式出错', at_sender=True)
+        return
+    try:
+        scale_list=seed_list1[1].split(f"tags:")
+        scale=scale_list[0].strip()
+    except:
+        await bot.finish(ev, '权重格式出错', at_sender=True)
+        return
+    try:
+        tags=scale_list[1].strip()
+    except:
+        await bot.finish(ev, '标签格式出错', at_sender=True)
+        return
+    try:
+        conn=sqlite3.connect(image_list_db)
+        cur = conn.cursor()
+        cur.execute("INSERT INTO aitag VALUES (?,?,?,?,?)",(scale,size,tags,seed,saveconfig))
+        conn.commit()
+        cur.close()
+        conn.close()
+        await bot.send(ev, f'上传成功！', at_sender=True)
+    except Exception as e:
+        await bot.send(ev, f"报错:{e}",at_sender=True)
 
 @sv.on_rex((r'^炼金手册([1-9]\d*)$'))
 async def alchemy_book(bot, ev):
