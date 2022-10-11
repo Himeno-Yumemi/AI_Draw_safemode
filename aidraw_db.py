@@ -8,7 +8,6 @@ from aiocqhttp.exceptions import ActionFailed
 from PIL import Image, ImageDraw,ImageFont
 from io import BytesIO
 
-
 import base64
 import json
 import time,calendar
@@ -17,22 +16,26 @@ import requests as req
 import sqlite3
 import os
 
-####替换成自己的API URL
-word2img_url = ""   #绘图API接口
-token = ""  #个人token
+####替换成自己的API
+word2img_url = "http://IP:PORT//got_image?tags="   #绘图API接口
+token = "&token=YOUR TOKEN"  #个人token
 
-
-lmt = FreqLimiter(60) #频率限制(s)
+quality=100 #炼金大全总表生成图片质量，若图片过大自行降低
+lmt = FreqLimiter(30) #频率限制(s)
 dlmt_ = 20 # 每日次数限制
 dlmt = DailyNumberLimiter(dlmt_)
 
 sv_help = '''
 【AI绘图数据库】
--[上传[参数]]  上传图片和tag至数据库内，[参数]为ai绘图的指令
--[炼金手册[序号]]  查询炼金手册内容，[序号]为页数，每页显示8张
--[查看配方[序号]]  查询炼金配方内容，[序号]为图片标签
--[使用配方[序号]]  使用炼金配方内容，[序号]为图片标签
--[删除配方[序号]]  删除炼金配方内容，[序号]为图片标签
+-【上传【参数】】  上传图片和tag至数据库内，[参数]为ai绘图的指令
+-【'回复'[bot昵称]上传】  同为上传
+-【炼金大全】  查询炼金手册全部内容
+-【炼金手册[序号]】  查询炼金手册内容，[序号]为页数，每页显示8张
+-【查看配方[序号]】  查询炼金配方内容，[序号]为图片标签
+-【修改配方[序号][tags]】  修改炼金配方标签内容，[序号]为图片标签
+[tags]为tags:xxx,xxx,xxx,xxx,xxx,xxx
+-【使用配方]序号]】  使用炼金配方内容，[序号]为图片标签
+-【删除配方[序号]】  删除炼金配方内容，[序号]为图片标签
 PS:上传仅限管理员使用，删除仅限超级管理员使用
 '''
 
@@ -54,24 +57,182 @@ lock = Lock()
 curpath = dirname(__file__)
 image_list_db = join(curpath, 'save_tags.db')   #保存tags数据库
 save_image_path= join(curpath,'SaveImage')  # 保存图片路径
+font_path = join(curpath,"fz.TTF")  #字体文件路径
 
-#创建数据库图片存放文件夹
-if not exists(save_image_path):
-    os.mkdir(save_image_path)
+class ImageCounter:
+    def __init__(self):
+        os.makedirs(os.path.dirname(image_list_db), exist_ok=True)
+        self._create_table()
+        
+    def _connect(self):
+        return sqlite3.connect(image_list_db)
+        
+    def _create_table(self):
+        try:
+            self._connect().execute('''CREATE TABLE IF NOT EXISTS aitag
+                        (权重 TINYINT,
+                        形状 CHAR,
+                        标签 TEXT,
+                        种子 INT,
+                        图片 BLOB);''')
+        except:
+            raise Exception('创建表发生错误')
+            
+    def _add_image(self, scale, size,tags,seed,saveconfig):
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    "INSERT INTO aitag VALUES (?,?,?,?,?)",(scale,size,tags,seed,saveconfig))
+            return "添加配方成功！"
+        except:
+            raise Exception('添加配方发生错误')
 
-#创建数据库文件并新建一个aitag表
-if not exists(image_list_db):
-    conn = sqlite3.connect(image_list_db)
-    cur = conn.cursor()
-    sql_title = '''CREATE TABLE aitag
-           (权重 TINYINT,
-            形状 CHAR,
-            标签 TEXT,
-            种子 INT,
-            图片 BLOB);'''
-    cur.execute(sql_title)
-    cur.close()
-    conn.close()
+    def _update_image(self, tags,rowid):
+        try:
+            with self._connect() as conn:
+                conn.execute("UPDATE aitag SET 标签 = ? WHERE rowid=?",(tags,rowid,))
+            return f"修改配方{rowid}成功"
+        except:
+            raise Exception('修改配方发生错误')
+
+    def _delete_image(self, rowid):
+        try:
+            with self._connect() as conn:
+                r = conn.execute("SELECT 图片 FROM aitag WHERE rowid=?", (rowid,)).fetchone()
+                os.remove(r[0])
+                conn.execute("DELETE FROM aitag WHERE rowid=?", (rowid,))
+            return f"删除配方{rowid}成功"
+        except:
+            raise Exception('删除配方发生错误')
+
+    def _vacuum_image(self):
+        try:
+            conn = self._connect()
+            conn.execute('vacuum')
+            conn.close
+        except:
+            raise Exception('刷新配方发生错误')
+            
+    def _get_image(self, rowid):
+        try:
+            with self._connect() as conn:
+                r = conn.execute("SELECT * FROM aitag WHERE rowid=?", (rowid, )).fetchone()
+            return 0 if r is None else r
+        except:
+            raise Exception('查找配方发生错误')
+    
+    def _get_image_list(self, num):
+        try:
+            up_index=(num-1)*8-1
+            down_index=num*8
+            with self._connect() as conn:
+                r = conn.execute("SELECT rowid,图片 FROM aitag WHERE rowid BETWEEN ? AND ?",(up_index,down_index)).fetchall()            
+            return r if r else {}
+        except:
+            raise Exception('炼金手册发生错误')
+
+    def _get_all_image_list(self):
+        try:
+            with self._connect() as conn:
+                r = conn.execute(
+                    "select rowid,图片 FROM aitag").fetchall()        
+            return r if r else {}
+        except:
+            raise Exception('炼金大全发生错误')
+
+    def _get_rowid(self):
+        try:
+            with self._connect() as conn:
+                r = conn.execute("select rowid from aitag order by rowid desc limit 1").fetchone()
+            return r[0] if r else 0
+        except:
+            raise Exception('查找配方号发生错误')
+
+class SaveClass:
+    def __init__(self):
+        if not exists(save_image_path):
+            os.mkdir(save_image_path)
+    
+    def _re_image_msg(self,msg):
+        try:
+            image_url = re.match(r"\[CQ:image,file=(.*),url=(.*)\]", str(msg))
+            pic_url = image_url.group(2)
+            return 0 if not pic_url else pic_url
+        except:
+            raise Exception('图片链接发生错误')
+
+    def _save_image(self,url):
+        try:
+            response = req.get(url)
+            img = Image.open(BytesIO(response.content)).convert("RGB")
+            image_base64 = base64.b64encode(BytesIO(response.content).read())
+            imgdata=base64.b64decode(image_base64)
+            datetime = calendar.timegm(time.gmtime())
+            saveconfig = join(save_image_path, f'{str(datetime)}.png')
+            size=f"{img.width}x{img.height}"
+            pic = open(saveconfig, "wb")
+            pic.write(imgdata)
+            pic.close()
+            return size,saveconfig
+        except:
+            raise Exception('图片获取发生错误')
+            
+    def _save_info(self,image,msg,num):
+        try:
+            try:
+                seed_list1=str(msg).split(f"scale:")
+                seed_list2=seed_list1[0].split('eed:')
+                seed=seed_list2[1].strip ()
+            except:
+                raise Exception('种子出错')
+            try:
+                scale_list=seed_list1[1].split(f"tags:")
+                scale=scale_list[0].strip()
+            except:
+                raise Exception('权重出错')
+            try:
+                tags_list=scale_list[1].split(f"&")
+                tags=tags_list[0].strip()
+            except:
+                tags_list=scale_list[1].strip()
+                raise Exception('标签格式出错')
+            if num == 1:
+                url = self._re_image_msg(str(image))
+                size,saveconfig = self._save_image(url)
+            else:
+                size,saveconfig = self._save_image(image)
+            ImageCounter()._add_image(scale, size,tags,seed,saveconfig)
+            num=ImageCounter()._get_rowid()
+            return f"配方保存成功,编号：{num}"
+        except:
+            raise Exception('配方保存发生错误')
+
+class Another_code():
+    def _size_to_shape(self,size):
+        size_info=str(size).split('x')
+        size_width=size_info[0]
+        size_height=size_info[1]
+        if (size_width > size_height[1]):
+            image_shape = "Landscape"
+        elif (size_width == size_height[1]):
+            image_shape = "Square"
+        else:
+            image_shape = "Portrait"
+        return image_shape
+
+    def _Imt_check(self,uid):
+        if not lmt.check(uid):
+            msg = f"魔力回复中！(剩余 {int(lmt.left_time(uid)) + 1}秒)"
+            return msg
+        else:
+            return 0
+
+    def _dlmt_check(self,uid):
+        if not dlmt.check(uid):
+            msg = f"今日魔力已经用完，请明天再来~"
+            return msg
+        else:
+            return 0
 
 @sv.on_prefix(('上传'))
 async def upload_header(bot, ev):
@@ -79,65 +240,27 @@ async def upload_header(bot, ev):
     if not priv.check_priv(ev, priv.ADMIN):
         await bot.finish(ev, '上传配方仅限管理员使用', at_sender=True)
         return
-    """ uid = str(ev['user_id'])
-    if not lmt.check(uid):
-        await bot.finish(ev, f'魔力回复中！(剩余 {int(lmt.left_time(uid)) + 1}秒)', at_sender=True)
-        return
-    lmt.start_cd(uid,10) """
     async with lock:
         try:
             for i in ev.message:
                 if i.type == "image":
                     image=str(i)
                     break
-            image_url = re.match(r"\[CQ:image,file=(.*),url=(.*)\]", str(image))
-            pic_url = image_url.group(2)
-            response = req.get(pic_url)
-            img = Image.open(BytesIO(response.content)).convert("RGB")
-            ls_f=base64.b64encode(BytesIO(response.content).read())
-            imgdata=base64.b64decode(ls_f)
-            datetime = calendar.timegm(time.gmtime())
-            image_path= './SaveImage/'+str(datetime)+'.png'
-            saveconfig = join(curpath, f'{image_path}')
-            size=f"{img.width}x{img.height}"
-            pic = open(saveconfig, "wb")
-            pic.write(imgdata)
-            pic.close()
         except:
-            await bot.finish(ev, '图片格式出错', at_sender=True)
+            await bot.finish(ev,"未获取到图片",at_sender=True)
             return
         try:
-            seed_list1=str(ev.message).split(f"scale:")
-            seed_list2=seed_list1[0].split('eed:')
-            seed=seed_list2[1].strip ()
-        except:
-            await bot.finish(ev, '种子格式出错', at_sender=True)
-            return
-        try:
-            scale_list=seed_list1[1].split(f"tags:")
-            scale=scale_list[0].strip()
-        except:
-            await bot.finish(ev, '权重格式出错', at_sender=True)
-            return
-        try:
-            tags=scale_list[1].strip()
-        except:
-            await bot.finish(ev, '标签格式出错', at_sender=True)
-            return
-        try:
-            conn=sqlite3.connect(image_list_db)
-            cur = conn.cursor()
-            cur.execute("INSERT INTO aitag VALUES (?,?,?,?,?)",(scale,size,tags,seed,saveconfig))
-            conn.commit()
-            cur.close()
-            conn.close()
-            await bot.send(ev, f'上传成功！', at_sender=True)
+            msg = SaveClass()._save_info(image,ev.message,1)
+            await bot.send(ev, msg, at_sender=True)
         except Exception as e:
-            await bot.send(ev, f"报错:{e}",at_sender=True)
+            await bot.finish(ev, f"发生错误，原因：{e}", at_sender=True)
+            return
 
+#获取机器人昵称
 if type(NICKNAME) == str:
     NICKNAME = [NICKNAME]
 
+#通过'回复'来进行上传
 @sv.on_message('group')
 async def replymessage(bot, ev: CQEvent):
     seg=ev.message[0]
@@ -167,185 +290,195 @@ async def replymessage(bot, ev: CQEvent):
     except ActionFailed:
         await bot.finish(ev, '该消息已过期，请重新转发~')
         return
-    try:
-        image_url = re.search(r"\[CQ:image,file=(.*),url=(.*)\]", str(tmsg["message"]))
-        if not image_url:
-            await bot.send(ev, '未找到图片~')
-            return
-        file = image_url.group(1)
-        pic_url = image_url.group(2)
-        if ',subType=' in pic_url:
-            sbtype=pic_url.split('=')[-1]
-            pic_url = pic_url.split(',')[0]
-        elif ',subType=' in file:
-            sbtype=file.split('=')[-1]
-            file = file.split(',')[0]
-        else:
-            sbtype=None
-        if 'c2cpicdw.qpic.cn/offpic_new/' in pic_url:
-            md5 = file[:-6].upper()
-            pic_url = f"http://gchat.qpic.cn/gchatpic_new/0/0-0-{md5}/0?term=2"
-        response = req.get(pic_url)
-        img = Image.open(BytesIO(response.content)).convert("RGB")
-        ls_f=base64.b64encode(BytesIO(response.content).read())
-        imgdata=base64.b64decode(ls_f)
-        datetime = calendar.timegm(time.gmtime())
-        image_path= './SaveImage/'+str(datetime)+'.png'
-        saveconfig = join(curpath, f'{image_path}')
-        size=f"{img.width}x{img.height}"
-        pic = open(saveconfig, "wb")
-        pic.write(imgdata)
-        pic.close()
-    except:
-        await bot.finish(ev, '图片格式出错', at_sender=True)
+    image_url = re.search(r"\[CQ:image,file=(.*),url=(.*)\]", str(tmsg["message"]))
+    if not image_url:
+        await bot.finish(ev, '未找到图片~')
         return
+    file = image_url.group(1)
+    pic_url = image_url.group(2)
+    if ',subType=' in pic_url:
+        sbtype=pic_url.split('=')[-1]
+        pic_url = pic_url.split(',')[0]
+    elif ',subType=' in file:
+        sbtype=file.split('=')[-1]
+        file = file.split(',')[0]
+    else:
+        sbtype=None
+    if 'c2cpicdw.qpic.cn/offpic_new/' in pic_url:
+        md5 = file[:-6].upper()
+        pic_url = f"http://gchat.qpic.cn/gchatpic_new/0/0-0-{md5}/0?term=2"
     try:
-        seed_list1=str(tmsg["message"]).split(f"scale:")
-        seed_list2=seed_list1[0].split('eed:')
-        seed=seed_list2[1].strip ()
-    except:
-        await bot.finish(ev, '种子格式出错', at_sender=True)
-        return
-    try:
-        scale_list=seed_list1[1].split(f"tags:")
-        scale=scale_list[0].strip()
-    except:
-        await bot.finish(ev, '权重格式出错', at_sender=True)
-        return
-    try:
-        tags=scale_list[1].strip()
-    except:
-        await bot.finish(ev, '标签格式出错', at_sender=True)
-        return
-    try:
-        conn=sqlite3.connect(image_list_db)
-        cur = conn.cursor()
-        cur.execute("INSERT INTO aitag VALUES (?,?,?,?,?)",(scale,size,tags,seed,saveconfig))
-        conn.commit()
-        cur.close()
-        conn.close()
-        await bot.send(ev, f'上传成功！', at_sender=True)
+        msg = SaveClass()._save_info(pic_url,tmsg["message"],0)
+        await bot.send(ev, msg, at_sender=True)
     except Exception as e:
-        await bot.send(ev, f"报错:{e}",at_sender=True)
+        await bot.finish(ev, f"发生错误，原因：{e}", at_sender=True)
+        return
 
 @sv.on_rex((r'^炼金手册([1-9]\d*)$'))
 async def alchemy_book(bot, ev):
-    conn=sqlite3.connect(image_list_db)
     match = ev['match']
-    page=int(match.group(1))-1
-    cur = conn.cursor()
-    sql = "select rowid,图片 from aitag"
-    results = cur.execute(sql)
-    image_list = results.fetchall()
-    cur.close()
-    conn.close()
-    target = Image.new('RGB', (1920,1080),(255,255,255))
-    i=0
-    for index in range(0+(page*8),8+(page*8)):
-        try:
+    page=int(match.group(1))
+    image_list=ImageCounter()._get_image_list(page)
+    if image_list == {}:
+        await bot.finish(ev, f"手册该页没有配方哦", at_sender=True)
+        return
+    try:
+        target = Image.new('RGB', (1920,1080),(255,255,255))
+        i=0
+        for index in range(0,8):
+            try:
+                image_msg=image_list[index]
+            except:
+                break
+            rowid = image_msg[0]
+            image_path=image_msg[1]
+            region = Image.open(image_path)
+            region = region.convert("RGB")
+            region = region.resize((int(region.width/2),int(region.height/2)))
+            font = ImageFont.truetype(font_path, 36)  # 设置字体和大小
+            draw = ImageDraw.Draw(target)
+            if i<4:
+                target.paste(region,(80*(i+1)+384*i,50))
+                draw.text((80*(i+1)+384*i+int(region.width/2)-18,80+region.height),str(rowid).replace(',',''),font=font,fill = (0, 0, 0))
+            if i>=4:
+                target.paste(region,(80*(i-3)+384*(i-4),150+384))
+                draw.text((80*(i-3)+384*(i-4)+int(region.width/2)-18,180+384+region.height),str(rowid).replace(',',''),font=font,fill = (0, 0, 0))
+            i+=1
+        result_buffer = BytesIO()
+        target.save(result_buffer, format='JPEG', quality=100) #质量影响图片大小
+        imgmes = 'base64://' + base64.b64encode(result_buffer.getvalue()).decode()
+        resultmes = f"[CQ:image,file={imgmes}]"
+        await bot.send(ev,resultmes)
+    except Exception as e:
+        await bot.finish(ev, f"发生错误，原因：{e}", at_sender=True)
+
+@sv.on_fullmatch(('炼金大全'))
+async def alchemy_book_all(bot, ev):
+    image_list=ImageCounter()._get_all_image_list()
+    if image_list == {}:
+        await bot.finish(ev, f"炼金手册里没有配方哦", at_sender=True)
+        return
+    image_len=int(ImageCounter()._get_rowid())
+    add_page=1080*(image_len//8+1)
+    try:
+        target = Image.new('RGB', (1920,add_page),(255,255,255))
+        for index in range(0,image_len):
             image_msg=image_list[index]
-        except:
-            break
-        rowid = image_msg[0]
-        image_path=image_msg[1]
-        region = Image.open(image_path)
-        region = region.convert("RGB")
-        region = region.resize((int(region.width/2),int(region.height/2)))
-        font = ImageFont.truetype('C:\\WINDOWS\\Fonts\\simsun.ttc', 36)  # 设置字体和大小
-        draw = ImageDraw.Draw(target)
-        if i<4:
-            target.paste(region,(80*(i+1)+384*i,50))
-            draw.text((80*(i+1)+384*i+int(region.width/2)-18,80+region.height),str(rowid).replace(',',''),font=font,fill = (0, 0, 0))
-        if i>=4:
-            target.paste(region,(80*(i-3)+384*(i-4),150+384))
-            draw.text((80*(i-3)+384*(i-4)+int(region.width/2)-18,180+384+region.height),str(rowid).replace(',',''),font=font,fill = (0, 0, 0))
-        i+=1
-    result_buffer = BytesIO()
-    target.save(result_buffer, format='JPEG', quality=100) #质量影响图片大小
-    imgmes = 'base64://' + base64.b64encode(result_buffer.getvalue()).decode()
-    resultmes = f"[CQ:image,file={imgmes}]"
-    await bot.send(ev,resultmes)
+            rowid = image_msg[0]
+            image_path=image_msg[1]
+            region = Image.open(image_path)
+            region = region.convert("RGB")
+            region = region.resize((int(region.width/2),int(region.height/2)))
+            font = ImageFont.truetype(font_path, 36)  # 设置字体和大小
+            draw = ImageDraw.Draw(target)
+            row=index//4+1  #行
+            column= index%4+1   #列
+            target.paste(region,(80*column+384*(column-1),50+100*(row-1)+384*(row-1)))
+            draw.text((80*column+384*(column-1)+int(region.width/2)-18,80+100*(row-1)+384*(row-1)+region.height),str(rowid).replace(',',''),font=font,fill = (0, 0, 0))
+        result_buffer = BytesIO()
+        target.save(result_buffer, format='JPEG', quality=quality) #质量影响图片大小
+        imgmes = 'base64://' + base64.b64encode(result_buffer.getvalue()).decode()
+        resultmes = f"[CQ:image,file={imgmes}]"
+        await bot.send(ev,resultmes)
+    except Exception as e:
+        await bot.finish(ev, f"发生错误，原因：{e}", at_sender=True)
 
 @sv.on_rex((r'^查看配方([1-9]\d*)'))
 async def view_recipe(bot, ev):
     uid = str(ev['user_id'])
-    if not lmt.check(uid):
-        await bot.finish(ev, f'魔力回复中！(剩余 {int(lmt.left_time(uid)) + 1}秒)', at_sender=True)
+    cd=Another_code()._Imt_check(uid)
+    if cd != 0:
+        await bot.finish(ev,cd,at_sender=True)
         return
-    lmt.start_cd(uid,30)
-    match = ev['match']
-    rowid=int(match.group(1))
-    conn=sqlite3.connect(image_list_db)
-    cur = conn.cursor()
-    results=cur.execute("SELECT * FROM aitag WHERE rowid=?", (rowid,))
-    peifang = results.fetchone()
-    scale=peifang[0]
-    size=peifang[1]
-    tags=peifang[2]
-    image_path=peifang[4]
-    seed=peifang[3]
-    pic = open(image_path, "rb")
-    base64_str = base64.b64encode(pic.read())
-    imgmes = 'base64://' + base64_str.decode()
-    resultmes = f"[CQ:image,file={imgmes}]"
-    pic.close()
-    msg=f"序号为:{rowid}\n{resultmes}\n配方:ai绘图{tags}\nCFG scale: {scale}, Size:{size}"
-    cur.close()
-    conn.close()
-    await bot.send(ev,msg,at_sender=True)
+    else:
+        lmt.start_cd(uid,10)
+    try:
+        match = ev['match']
+        rowid=int(match.group(1))
+        image_msg = ImageCounter()._get_image(rowid)
+        if image_msg == 0:
+            await bot.finish(ev, f"手册该页没有配方哦", at_sender=True)
+            return
+    except Exception as e:
+        await bot.finish(ev, f"发生错误，原因：{e}", at_sender=True)
+        return
+    try:
+        scale=image_msg[0]
+        size=image_msg[1]
+        tags=image_msg[2]
+        image_path=image_msg[4]
+        #seed=image_msg[3]
+        pic = open(image_path, "rb")
+        base64_str = base64.b64encode(pic.read())
+        imgmes = 'base64://' + base64_str.decode()
+        resultmes = f"[CQ:image,file={imgmes}]"
+        pic.close()
+        shape=Another_code()._size_to_shape(size)
+        msg=f"配方序号为:{rowid}\n{resultmes}\nai绘图{tags}&scale={scale}&shape={shape}"
+        await bot.send(ev,msg,at_sender=True)
+    except Exception as e:
+        await bot.finish(ev, f"发生错误，原因：{e}", at_sender=True)
 
 @sv.on_rex((r'^使用配方([1-9]\d*)'))
 async def generate_recipe(bot, ev):
     uid = str(ev['user_id'])
-    if not dlmt.check(uid):
-        await bot.finish(ev, f'今日魔力已经用完，请明天再来~', at_sender=True)
+    dImt_msg=Another_code()._dlmt_check(uid)
+    if dImt_msg != 0:
+        await bot.finish(ev, dImt_msg, at_sender=True)
         return
-    if not lmt.check(uid):
-        await bot.finish(ev, f'魔力回复中！(剩余 {int(lmt.left_time(uid)) + 1}秒)', at_sender=True)
+    else:
+        dlmt.increase(uid)
+    Imt_msg=Another_code()._Imt_check(uid)
+    if Imt_msg != 0:
+        await bot.finish(ev, Imt_msg, at_sender=True)
         return
-    dlmt.increase(uid) 
-    lmt.start_cd(uid)
-    match = ev['match']
-    rowid=int(match.group(1))
-    conn=sqlite3.connect(image_list_db)
-    cur = conn.cursor()
-    results=cur.execute("SELECT * FROM aitag WHERE rowid=?", (rowid,))
-    peifang = results.fetchone()
-    scale=peifang[0]
-    size=peifang[1]
-    tags=peifang[2]
-    msg=f"{tags}\nCFG scale: {scale}, Size:{size}".replace('&r18=1','')
-    cur.close()
-    conn.close()
-    await bot.send(ev, f"\n正在炼金中，请稍后...\n(今日剩余{dlmt_-int(dlmt.get_num(uid))}次)", at_sender=True)
-    image = await gen_pic(msg)
-    await bot.send(ev,image,at_sender=True)
+    else:
+        lmt.start_cd(uid)
+    try:
+        match = ev['match']
+        rowid=int(match.group(1))
+        image_list=ImageCounter()._get_image(rowid)
+        scale=image_list[0]
+        size=image_list[1]
+        shape=Another_code()._size_to_shape(size)
+        tags=image_list[2]
+        msg=f"{tags}&scale={scale}&shape={shape}".replace('&r18=1','')
+        await bot.send(ev, f"\n正在炼金中，请稍后...\n(今日剩余{dlmt_-int(dlmt.get_num(uid))}次)", at_sender=True)
+        image = await gen_pic(msg)
+        await bot.send(ev,image,at_sender=True)
+    except Exception as e:
+        await bot.finish(ev, f"发生错误，原因：{e}", at_sender=True)
+
+@sv.on_rex((r'^修改配方([1-9]\d*)'))
+async def update_recipe(bot, ev):
+    if not priv.check_priv(ev, priv.ADMIN):
+        await bot.finish(ev, '修改配方仅限管理员使用', at_sender=True)
+        return
+    try:
+        match = ev['match']
+        rowid=int(match.group(1))
+        tags_list1=str(ev.message).split('tags:')
+        tags_list2=tags_list1[1].split('&')
+        tags=tags_list2[0]
+        print(tags)
+        msg=ImageCounter()._update_image(tags,rowid)
+        await bot.send(ev,msg,at_sender=True)
+    except Exception as e:
+        await bot.finish(ev, f"发生错误，原因：{e}", at_sender=True)
 
 @sv.on_rex((r'^删除配方([1-9]\d*)'))
 async def delete_recipe(bot, ev):
     if not priv.check_priv(ev, priv.SUPERUSER):
         await bot.finish(ev, '删除配方仅限超级管理员使用', at_sender=True)
         return
-    """ uid = str(ev['user_id'])
-    if not lmt.check(uid):
-        await bot.finish(ev, f'魔力回复中！(剩余 {int(lmt.left_time(uid)) + 1}秒)', at_sender=True)
-        return
-    lmt.start_cd(uid) """
+    #try:
     match = ev['match']
     rowid=int(match.group(1))
-    conn=sqlite3.connect(image_list_db)
-    cur = conn.cursor()
-    results=cur.execute("SELECT 图片 FROM aitag WHERE rowid=?", (rowid,))
-    delete_path = results.fetchone()
-    delete_image=delete_path[0]
-    os.remove(delete_image)
-    cur.execute("DELETE FROM aitag WHERE rowid=?", (rowid,))
-    conn.commit()
-    cur.execute('vacuum')
-    msg=f"已删除配方:{rowid}"
-    cur.close()
-    conn.close()
+    msg=ImageCounter()._delete_image(rowid)
+    ImageCounter()._vacuum_image()
     await bot.send(ev,msg,at_sender=True)
+    """ except Exception as e:
+        await bot.finish(ev, f"发生错误，原因：{e}", at_sender=True) """
 
 async def gen_pic(text):
     try:
@@ -355,8 +488,7 @@ async def gen_pic(text):
         load_data = json.loads(re.findall('{"steps".+?}', str(image))[0])
         image_b64 = 'base64://' + str(base64.b64encode(image).decode())
         mes = f"[CQ:image,file={image_b64}]"
-        mes += f'\nseed:{load_data["seed"]}'
-        
+        mes += f'\nseed:{load_data["seed"]}'       
         """ mes += f'\tscale:{load_data["scale"]}\n'
         mes += f'tags:{text}' """
         return mes
@@ -364,8 +496,8 @@ async def gen_pic(text):
         return f"炼金失败了,原因:{e}"
 
 async def wordimage(word):
-    bg = Image.new('RGB', (950,300), color=(255,255,255))
-    font = ImageFont.truetype('C:\\WINDOWS\\Fonts\\simsun.ttc', 30)  # 设置字体和大小
+    bg = Image.new('RGB', (950,450), color=(255,255,255))
+    font = ImageFont.truetype(font_path, 30)  # 设置字体和大小
     draw = ImageDraw.Draw(bg)
     draw.text((10,5), word, fill="#000000", font=font)
     result_buffer = BytesIO()
