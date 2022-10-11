@@ -1,5 +1,5 @@
 # AI_Draw_safemode
-<font size=6><b>本插件为AI_image_gen的辅助插件，请自行下载AI_image_gen<b></font>
+<b>本插件为AI_image_gen的辅助插件，请自行下载AI_image_gen<b>
 ## 功能介绍
 通过上传图片参数至数据库，来实现快捷的图片预览、图片TAG获取、对应标签的ai图片生成等功能。
 ## 具体操作
@@ -20,28 +20,28 @@ PS:若不喜欢本字体可自行更换，但文件名必须是<code>fz.TTF</cod
 | 使用配方<b>[序号]</b>  | 使用炼金配方内容  | <b>[序号]</b>为图片标签  |
 | 删除配方<b>[序号]</b>  | 删除炼金配方内容  | <b>[序号]</b>为图片标签  |
 PS:上传与修改仅限管理员使用，删除仅限超级管理员使用
-## <font size=6>使用演示</font>
+## 使用演示
 <b>绘图数据库帮助:</b>
-![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E7%BB%98%E5%9B%BE%E6%95%B0%E6%8D%AE%E5%BA%93%E5%B8%AE%E5%8A%A9.png)
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E7%BB%98%E5%9B%BE%E6%95%B0%E6%8D%AE%E5%BA%93%E5%B8%AE%E5%8A%A9.png)\
 <b>上传[参数]:</b>
-![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E4%B8%8A%E4%BC%A0.png)
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E4%B8%8A%E4%BC%A0.png)\
 <b>'回复'[bot昵称]上传:</b>
-![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E6%8C%87%E4%BB%A4%E4%B8%8A%E4%BC%A0.png)
-<b>炼金大全</b>
-![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E7%82%BC%E9%87%91%E5%A4%A7%E5%85%A8.png)
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E6%8C%87%E4%BB%A4%E4%B8%8A%E4%BC%A0.png)\
+<b>炼金大全:</b>
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E7%82%BC%E9%87%91%E5%A4%A7%E5%85%A8.png)\
 <b>炼金手册[序号]:</b>
-![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E7%82%BC%E9%87%91%E6%89%8B%E5%86%8C.png)
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E7%82%BC%E9%87%91%E6%89%8B%E5%86%8C.png)\
 <b>查看配方[序号]:</b>
-![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E6%9F%A5%E7%9C%8B%E9%85%8D%E6%96%B9.png)
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E6%9F%A5%E7%9C%8B%E9%85%8D%E6%96%B9.png)\
 <b>修改配方[序号]:</b>
-![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E4%BF%AE%E6%94%B9%E9%85%8D%E6%96%B9.png)
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E4%BF%AE%E6%94%B9%E9%85%8D%E6%96%B9.png)\
 <b>使用配方[序号]:</b>
-![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E4%BD%BF%E7%94%A8%E9%85%8D%E6%96%B9.png)
+![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E4%BD%BF%E7%94%A8%E9%85%8D%E6%96%B9.png)\
 <b>删除配方[序号]:</b>
 ![image](https://github.com/jiyemengmei/AI_Draw_safemode/blob/main/image/%E5%88%A0%E9%99%A4%E9%85%8D%E6%96%B9.png)
 ## 鸣谢
 <a href="https://github.com/Mrs4s/go-cqhttp" target="_BLANK">go-cqhttp</a>\
-<a href="https://github.com/Ice-Cirno/HoshinoBot" target="_BLANK">HoshinoBot</a>\
+<a href="https://github.com/Ice-Cirno/HoshinoBot" target="_BLANK">HoshinoBot</a>
 ## 友情链接
 <a href="https://github.com/CYDXDianXian/AI_image_gen" target="_BLANK">AI_image_gen</a>
 ## API
