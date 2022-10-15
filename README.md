@@ -5,8 +5,7 @@
 ## 项目地址
 
 仓库:<a href="https://github.com/jiyemengmei/AI_Draw_safemode" target="_BLANK">https://github.com/jiyemengmei/AI_Draw_safemode</a>\
-群内一般也会更新，建议查看群内文件日期与仓库日期是否一致\
-<a href="#更新日志" target="_BLANK">更新日期</a>
+最新测试版:<a href="https://github.com/jiyemengmei/AI_Draw_safemode/tree/dev/aidrawDB_dev" target="_BLANK">点击跳转</a>
 
 ## 功能介绍
 
