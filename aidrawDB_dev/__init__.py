@@ -75,6 +75,7 @@ token = f"&token={get_config('NovelAI', 'token')}"
 default_tags = get_config('default_tags', 'tags')
 bot_name = get_config('default', 'bot_name')
 bot_uid = get_config('default', 'bot_uid')
+TencentAI_check = get_config('default', 'bot_uid')
 
 async def check_lmt(uid, num,cd):
     if uid in SUPERUSERS:
@@ -241,6 +242,7 @@ async def gen_pic(bot, ev):
     num = 0
     cd=int(flmt_cd)
     result, msg = await check_lmt(uid, num,cd)
+    score=''
     if result != 0:
         await bot.send(ev, msg)
         return
@@ -269,15 +271,16 @@ async def gen_pic(bot, ev):
                     await bot.send(ev, f"重试{i+1}次无果,请自行重试", at_sender=True)
                     return
         image_base64=str(base64_en).replace("b'","").replace("'","")
-        score = await get_score(image_base64)
         if shape == '':
             shape = await size_to_shape(size)
         if scale == '':
             scale = 11
-        if score >=75:
-            await bot.send(ev,f"图片太涩了，分数高达{score}，不予显示",at_sender=True)
-            return
-        DBCounter()._insert_scoredata(scale,shape,tags,seed,image_base64,score,ntags)
+        if TencentAI_check == True:
+            score = await get_score(image_base64)
+            if score >=75:
+                await bot.send(ev,f"图片太涩了，分数高达{score}，不予显示",at_sender=True)
+                return
+            DBCounter()._insert_scoredata(scale,shape,tags,seed,image_base64,score,ntags)
         mes = f"[CQ:image,file={pic}]\n"
         mes += f'seed:{seed}\t'
         mes += f'score:{score}\n'
@@ -321,7 +324,7 @@ async def view_recipe(bot, ev):
         msg=f"配方序号为:{rowid}\t点赞:{thumb}\n{resultmes}\n测试{tags}&scale={scale}&shape={shape}&ntags={ntags}"
         await bot.send(ev,msg,at_sender=True)
     except Exception as e:
-        await bot.send(ev, f"发生错误，原因：{e}", at_sender=True)
+        await bot.send(ev, f"发生错误，原因：{e}", at_sender=True)     
 
 @sv.on_rex((r'^使用配方([1-9]\d*)'))
 async def generate_recipe(bot, ev):
