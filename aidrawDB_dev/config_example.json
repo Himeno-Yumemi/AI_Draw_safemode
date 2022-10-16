@@ -5,6 +5,7 @@
         "freq_cd":10
     },
     "default": {
+        "trigger_word":"测试",
         "arrange_tags": true, 
         "add_db": true,
         "quality":100,
@@ -16,12 +17,21 @@
         "token": "" 
     },
     "Tencent": {
-        "TencentAI_check": true,
+        "TencentAI_check": false,
         "secretId": "",
         "secretKey": ""
     },
+    "Baidu": {
+        "BaiduAI_check": false,
+        "api_key": "",
+        "secret_key": ""
+    },
     "default_tags": {
         "tags": "miku"
+    },
+    "default_ntags":{
+        "ntags_stats":true,
+        "ntags":"extra fingers,fewer digits,extra limbs,extra arms,extra legs,malformed limbs,fused fingers,too many fingers,long neck,cross-eyed,mutated hands,polar lowres,bad anatomy,bad hands,bad body,bad proportions,gross proportions,text,error,missing fingers,missing arms,missing legs,extra digit,,cropped,poorly drawn hands,poorly drawn face,mutation,deformed,worst quality,low quality,normal quality,jpeg artifacts,signature,watermark,lowres,bad anatomy,bad hands, text, error, missing fingers,extra digit, fewer digits, cropped, worstquality, low quality, normal quality,jpegartifacts,signature, watermark, username,blurry,bad feet"
     },
     "ban_word": {
         "wordlist": [

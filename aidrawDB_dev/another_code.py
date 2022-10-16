@@ -10,10 +10,14 @@ from hoshino.config import NICKNAME
 from aiocqhttp.exceptions import ActionFailed
 from .config import get_config
 from .limit import guolv
+from .txcloud import get_score
+from .bdcloud import porn_pic_index
 
 #获取机器人昵称
 if type(NICKNAME) == str:
     NICKNAME = [NICKNAME]
+tencentAI_check = get_config('Tencent', 'TencentAI_check')
+baiduAI_check =get_config('Baidu', 'BaiduAI_check')
 
 async def re_url(image_msg):
     try:
@@ -79,6 +83,51 @@ async def re_info(msg):
 async def another_info(msg):
     try:
         seed=scale=shape=ntags=''
+        try:
+            seed_list=re.split('seed:',msg)
+            msg_list=seed_list[1].split('scale:')
+            seed=msg_list[0].strip()
+        except:
+            seed=0
+        try:
+            scale=msg_list[1].split('tags:')[0].strip()
+        except:
+            scale=11
+        try:
+            tags=msg_list[1].split('tags:')[1].split('&')[0].strip()
+            req_info='&'.join(msg_list[1].split('tags:')[1].split('&'))
+            try:
+                req_list = re.split('&',req_info)
+                for i in req_list:
+                    info = i.split('=')
+                    if info[0] == 'seed':
+                        seed=info[1]
+                    elif info[0] == 'scale':
+                        scale=info[1]
+                    elif info[0] == 'shape':
+                        shape=info[1]
+                    elif info[0] == 'ntags':
+                        ntags=info[1]
+            except:
+                info = req_list[0].split('=')
+                if info[0] == 'seed':
+                    seed=info[1]
+                elif info[0] == 'scale':
+                    scale=info[1]
+                elif info[0] == 'shape':
+                    shape=info[1]
+                elif info[0] == 'ntags':
+                    ntags=info[1]
+        except:
+            tags=msg_list[1].split('tags:')[1].strip()
+        return seed,scale,tags,shape,ntags
+    except:
+        raise Exception('配方保存发生错误')
+
+
+""" async def another_info(msg):
+    try:
+        seed=scale=shape=ntags=''
         msg_list=re.split('seed:',msg)
         for idx,x in enumerate(msg_list):
             if idx == 1:
@@ -101,7 +150,7 @@ async def another_info(msg):
                     tags=i
         return seed,scale,tags,shape,ntags
     except:
-        raise Exception('配方保存发生错误')
+        raise Exception('配方保存发生错误') """
 
 
 async def size_to_shape(size):
@@ -199,6 +248,28 @@ async def process_tags(tags):
     except Exception as e:
         error_msg = "过滤屏蔽词失败"
     return tags,error_msg,tags_guolu
+
+async def is_contain_chinese(check_str):
+    for ch in check_str:
+        if u'\u4e00' <= ch <= u'\u9fff':
+            return True
+    return False
+
+async def check_imgscore(data):
+    if tencentAI_check == True:
+        score = await get_score(data)
+        if score >=75:
+            return f"图片太涩了，分数高达{score}，不予显示"
+        else:
+            return score
+    elif baiduAI_check == True:
+        score,porn = await porn_pic_index(data)
+        if score >=75:
+            return f"图片太涩了，分数高达{score}，不予显示"
+        else:
+            return score
+    else:
+        return -1
 
 """ #协程锁
 async def retry_task(get_task, delay=1, max_retry=10):

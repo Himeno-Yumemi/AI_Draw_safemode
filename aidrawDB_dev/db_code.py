@@ -76,8 +76,8 @@ class DBCounter:
     def _delete_scoredata(self,rowid):
         try:
             with self._connect() as conn:
-                conn.execute("DELETE FROM aiscore WHERE rowid=?", (rowid,))
-            return f"删除ID:{rowid}成功"
+                conn.execute("DELETE FROM aiscore WHERE rowid NOT IN ( SELECT rowid FROM aiscore where rowid ORDER BY 分数 desc LIMIT ?)",(rowid,))
+            return f"删除除前{rowid}号分数成功"
         except:
             raise Exception('删除函数发生错误')
 

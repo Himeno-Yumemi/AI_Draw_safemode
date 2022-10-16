@@ -12,7 +12,7 @@ from .config import get_config
 from .db_code import DBCounter
 from .image_draw import *
 from .another_code import *
-from .txcloud import get_score
+
 
 import traceback
 import json
@@ -73,9 +73,15 @@ word2img_url = f"{get_config('NovelAI', 'api')}got_image?tags="
 token = f"&token={get_config('NovelAI', 'token')}"
 
 default_tags = get_config('default_tags', 'tags')
+
+ntags_stats = get_config('default_ntags', 'ntags_stats')
+default_ntags = get_config('default_ntags', 'ntags')
+
 bot_name = get_config('default', 'bot_name')
 bot_uid = get_config('default', 'bot_uid')
-TencentAI_check = get_config('default', 'bot_uid')
+trigger_word = get_config('default','trigger_word')
+
+
 
 async def check_lmt(uid, num,cd):
     if uid in SUPERUSERS:
@@ -145,7 +151,7 @@ async def another_replymessage(bot, ev):
                     msg_id =now_msg[1].strip()
             my_msg = await bot.get_msg(self_id=int(self_id), message_id=int(msg_id))
             seed,scale,tags,shape,ntags=await re_info(str(my_msg["message"]).replace("amp;",""))
-            tags=tags.replace('测试','')
+            tags=tags.replace(trigger_word,'')
         if shape == '':
             shape = await size_to_shape(size)
         if scale == '':
@@ -163,7 +169,7 @@ async def alchemy_book(bot, ev):
     uid = str(ev['user_id'])
     result, msg = await check_lmt(uid,0,10)
     if result != 0:
-        await bot.send(ev, msg)
+        await bot.send(ev, msg,at_sender=True)
         return
     match = ev['match']
     page=int(match.group(1))
@@ -180,7 +186,7 @@ async def alchemy_allbook(bot, ev):
         uid = str(ev['user_id'])
         result, msg = await check_lmt(uid,0,10)
         if result != 0:
-            await bot.send(ev, msg)
+            await bot.send(ev, msg,at_sender=True)
             return
         rowid=DBCounter()._get_tagrowid()
         image=await imagelist_all_draw(rowid,0)
@@ -196,7 +202,7 @@ async def score_all_rank(bot, ev):
         uid = str(ev['user_id'])
         result, msg = await check_lmt(uid,0,10)
         if result != 0:
-            await bot.send(ev, msg)
+            await bot.send(ev, msg,at_sender=True)
             return
         rowid=DBCounter()._get_scorerowid()
         image=await imagelist_all_draw(rowid,1)
@@ -206,37 +212,7 @@ async def score_all_rank(bot, ev):
         traceback.print_exc()
         await bot.send(ev, f"发生错误，原因：{e}", at_sender=True)
 
-
-""" @sv.on_prefix(('测试'))
-async def tessst(bot, ev):
-    #msg_list = ev.message.extract_plain_text()
-    gmsg = str(ev.message).replace("amp;","")
-    msg=''
-    seed=scale=shape=ntags=''
-    self_id=int(ev.self_id)
-    msg_id=int(ev.message_id)
-    try:
-        msg_list=re.split('&',gmsg)
-        for index,i in enumerate(msg_list):
-            if index == 0:
-                tags=i
-            else:
-                info = i.split('=')
-                if info[0] == 'seed':
-                    seed=info[1]
-                elif info[0] == 'scale':
-                    scale=info[1]
-                elif info[0] == 'shape':
-                    shape=info[1]
-                elif info[0] == 'ntags':
-                    ntags=info[1]
-        msg=f"tags:{tags}\nseed:{seed}\nscale:{scale}\nshape:{shape}\nntags:{ntags}"
-        await bot.send(ev,f'{msg}\nselfid:{self_id}\nmessageid:{msg_id}')
-    except Exception as e:
-        traceback.print_exc()
-        await bot.send(ev, f"发生错误，原因：{e}", at_sender=True) """
-
-@sv.on_prefix(('测试'))
+@sv.on_prefix((trigger_word))
 async def gen_pic(bot, ev):
     uid = ev['user_id']
     num = 0
@@ -244,9 +220,13 @@ async def gen_pic(bot, ev):
     result, msg = await check_lmt(uid, num,cd)
     score=''
     if result != 0:
-        await bot.send(ev, msg)
+        await bot.send(ev, msg,at_sender=True)
         return
     tags = ev.message.extract_plain_text().strip()
+    return_msg = await is_contain_chinese(tags)
+    if return_msg == True:
+        await bot.send(ev, f"tag有误", at_sender=True)
+        return
     tags,error_msg,tags_guolu=await process_tags(tags)
     if len(error_msg):
         await bot.send(ev, f"已报错：{error_msg}", at_sender=True)
@@ -275,12 +255,17 @@ async def gen_pic(bot, ev):
             shape = await size_to_shape(size)
         if scale == '':
             scale = 11
-        if TencentAI_check == True:
-            score = await get_score(image_base64)
-            if score >=75:
-                await bot.send(ev,f"图片太涩了，分数高达{score}，不予显示",at_sender=True)
-                return
-            DBCounter()._insert_scoredata(scale,shape,tags,seed,image_base64,score,ntags)
+        if ntags == '' and ntags_stats:
+            ntags == default_ntags
+        score = await check_imgscore(image_base64)
+        if type(score) == int:
+            if score != -1:
+                DBCounter()._insert_scoredata(scale,shape,tags,seed,image_base64,score,ntags)
+            else:
+                score = '无'
+        else:
+            await bot.send(ev, score, at_sender=True)
+            return
         mes = f"[CQ:image,file={pic}]\n"
         mes += f'seed:{seed}\t'
         mes += f'score:{score}\n'
@@ -296,7 +281,7 @@ async def view_recipe(bot, ev):
     uid = str(ev['user_id'])
     result, msg = await check_lmt(uid,0,10)
     if result != 0:
-        await bot.send(ev, msg)
+        await bot.send(ev, msg,at_sender=True)
         return
     try:
         match = ev['match']
@@ -321,10 +306,45 @@ async def view_recipe(bot, ev):
         region.save(result_buffer, format='JPEG', quality=quality) #质量影响图片大小
         imgmes = 'base64://' + base64.b64encode(result_buffer.getvalue()).decode()
         resultmes = f"[CQ:image,file={imgmes}]"
-        msg=f"配方序号为:{rowid}\t点赞:{thumb}\n{resultmes}\n测试{tags}&scale={scale}&shape={shape}&ntags={ntags}"
+        msg=f"配方序号为:{rowid}\t点赞:{thumb}\n{resultmes}\n{trigger_word}{tags}&scale={scale}&shape={shape}&ntags={ntags}"
         await bot.send(ev,msg,at_sender=True)
     except Exception as e:
-        await bot.send(ev, f"发生错误，原因：{e}", at_sender=True)     
+        await bot.send(ev, f"发生错误，原因：{e}", at_sender=True)
+
+@sv.on_rex((r'^分数配方([1-9]\d*)'))
+async def score_recipe(bot, ev):
+    uid = str(ev['user_id'])
+    result, msg = await check_lmt(uid,0,10)
+    if result != 0:
+        await bot.send(ev, msg,at_sender=True)
+        return
+    try:
+        match = ev['match']
+        rowid=int(match.group(1))
+        image_msg = DBCounter()._select_oneall_scoredata(rowid)
+        if image_msg == {}:
+            await bot.send(ev, f"未找到{rowid}配方哦", at_sender=True)
+            return
+    except Exception as e:
+        await bot.send(ev, f"发生错误，原因：{e}", at_sender=True)
+        return
+    try:
+        scale=str(image_msg[0]).strip()
+        shape=str(image_msg[1]).strip()
+        tags=str(image_msg[2]).strip()
+        image_base64=image_msg[4]
+        score=image_msg[5]
+        ntags=str(image_msg[6]).strip()
+        region = Image.open(BytesIO(base64.b64decode(image_base64)))
+        region = region.convert("RGB")
+        result_buffer = BytesIO()
+        region.save(result_buffer, format='JPEG', quality=quality) #质量影响图片大小
+        imgmes = 'base64://' + base64.b64encode(result_buffer.getvalue()).decode()
+        resultmes = f"[CQ:image,file={imgmes}]"
+        msg=f"配方序号为:{rowid}\t分数:{score}\n{resultmes}\n{trigger_word}{tags}&scale={scale}&shape={shape}&ntags={ntags}"
+        await bot.send(ev,msg,at_sender=True)
+    except Exception as e:
+        await bot.send(ev, f"发生错误，原因：{e}", at_sender=True)  
 
 @sv.on_rex((r'^使用配方([1-9]\d*)'))
 async def generate_recipe(bot, ev):
@@ -332,7 +352,7 @@ async def generate_recipe(bot, ev):
     cd=int(flmt_cd)
     result, msg = await check_lmt(uid,0,cd)
     if result != 0:
-        await bot.send(ev, msg)
+        await bot.send(ev, msg,at_sender=True)
         return
     try:
         match = ev['match']
@@ -366,10 +386,26 @@ async def generate_recipe(bot, ev):
         get_url = str(word2img_url + tags + token).replace("amp;","")
         base64_en,pic,seed,scale,size=await http_get(get_url)
         if base64_en==pic==seed==scale==size==0:
-            await bot.send(ev, f"网络或接口问题未获取到图片", at_sender=True)
-            return
+            await bot.send(ev, f"网络或接口问题未获取到图片,自动重试", at_sender=True)
+            for i in range(0,10):
+                flmt.start_cd(uid,10)
+                base64_en,pic,seed,scale,size=await http_get(get_url)
+                await asyncio.sleep(10)
+                if base64_en != 0:
+                    break
+                if i == 9:
+                    await bot.send(ev, f"重试{i+1}次无果,请自行重试", at_sender=True)
+                    return
         image_base64=str(base64_en).replace("b'","").replace("'","")
-        score = await get_score(image_base64)
+        score = await check_imgscore(image_base64)
+        if type(score) == int:
+            if score != -1:
+                DBCounter()._insert_scoredata(scale,shape,tags,seed,image_base64,score,ntags)
+            else:
+                score = '无'
+        else:
+            await bot.send(ev, score, at_sender=True)
+            return
         mes = f"[CQ:image,file={pic}]\n"
         mes += f'seed:{seed}\t'
         mes += f'score:{score}\n'
@@ -409,3 +445,19 @@ async def del_img(bot, ev):
         await bot.send(ev, f"报错:{e}",at_sender=True)
         traceback.print_exc()
 
+@sv.on_rex((r'^保留分数([1-9]\d*)'))
+async def del_img(bot, ev):
+    try:
+        if not priv.check_priv(ev,priv.SUPERUSER):
+            await bot.finish(ev, "只有超管才能删除", at_sender=True)
+        match = ev['match']
+        rowid=int(match.group(1))
+        if rowid > DBCounter()._get_scorerowid():
+            await bot.send(ev, f"配方{rowid}不存在哦", at_sender=True)
+            return
+        msg = DBCounter()._delete_scoredata(rowid)
+        DBCounter()._vacuum_data()
+        await bot.send(ev, msg, at_sender=True)
+    except Exception as e:
+        await bot.send(ev, f"报错:{e}",at_sender=True)
+        traceback.print_exc()

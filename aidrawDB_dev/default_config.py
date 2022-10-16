@@ -3,14 +3,14 @@ config_default = {
     "base": {
         "daily_max": 20,  # 每日上限次数
         "freq_limit": 10,  # 频率限制
-        "freq_cd":10    #使用CD
+        "freq_cd":10,   # 使用CD
     },
     "default": {
         "arrange_tags": True,  # 是否开启tags整理（默认开启，暂时无法关闭）
         "add_db": True,  # 是否开启数据录入（默认开启，暂时无法关闭）
         "quality":100,  # 生成图片质量
-        "bot_name":"梦美酱",
-        "bot_uid":2854196306
+        "bot_name":"梦美酱",    #转发消息bot名字
+        "bot_uid":2854196306,   #转发消息显示的QQ头像
     },
     "NovelAI": {
         "api": "",  # 设置api，例如："http://11.222.333.444:5555/"
@@ -21,9 +21,18 @@ config_default = {
         "secretId": "",  # 自己的腾讯云账户secretId
         "secretKey": "",  # 自己的腾讯云账户secretKey
     },
+    "Baidu": {
+        "BaiduAI_check": False, # 百度AI鉴黄开关
+        "api_key": "",  # 自己的百度云鉴黄api_key
+        "secret_key": ""    # 自己的百度云鉴黄secret_key
+    },
     "default_tags": {
         "tags": "miku"  # 如果没有指定tag的话，默认的tag
     },
+    "default_ntags":{
+        "ntags_stats":True, #默认负面tags开关
+        "ntags":"extra fingers,fewer digits,extra limbs,extra arms,extra legs,malformed limbs,fused fingers,too many fingers,long neck,cross-eyed,mutated hands,polar lowres,bad anatomy,bad hands,bad body,bad proportions,gross proportions,text,error,missing fingers,missing arms,missing legs,extra digit,,cropped,poorly drawn hands,poorly drawn face,mutation,deformed,worst quality,low quality,normal quality,jpeg artifacts,signature,watermark,lowres,bad anatomy,bad hands, text, error, missing fingers,extra digit, fewer digits, cropped, worstquality, low quality, normal quality,jpegartifacts,signature, watermark, username,blurry,bad feet"
+    },  #默认负面tags
     "ban_word": {
         "wordlist": [
             "r18",
