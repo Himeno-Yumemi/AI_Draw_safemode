@@ -11,7 +11,8 @@
 ### 2022/10/16
 ***
 ><b>本次更新为毁灭式更新，将图片以base64形式存入数据库，之前的数据库直接作废(原因：本地图片)
->- 将save_tags.db迁移出去，让程序重新生成新数据库
+>- 1、换一个文件夹使用本插件
+>- 2、将save_tags.db迁移出去，让程序重新生成新数据库
 >- 可选：手动取出tags，进行手动上传，或者bot上传（后续更新数据库迁移）</b>
 ***
 >修复众多bug，新增功能如下:
@@ -34,7 +35,7 @@
 
 
 ## 具体操作
-1、下载aidrawDB文件夹内全部内容，放到<code>hoshino/modules/aidrawDB</code>文件夹中\
+1、下载aidrawDB_dev文件夹内全部内容，放到<code>hoshino/modules/aidrawDB_dev</code>文件夹中\
 2、在<code>hoshino/config/\_bot\_.py</code>文件中，<code>MODULES_ON</code>里添加 "aidrawDB_dev"\
 3、【重要！！】**重命名`config_example.json`为`config.json`**\
 4、【重要！！】**打开`config.json`，填入NovelAI的token**
