@@ -266,9 +266,9 @@ async def gen_pic(bot, ev):
             await bot.send(ev,seed,at_sender=True)
             return
         if base64_en==pic==seed==scale==size==0:
-            TimerStart(0)
             await bot.send(ev, f"网络或接口问题未获取到图片,自动重试", at_sender=True)
             for i in range(0,10):
+                TimerStart(0)
                 flmt.start_cd(uid,11)
                 base64_en,pic,seed,scale,size=await http_get(get_url)
                 await asyncio.sleep(11)
