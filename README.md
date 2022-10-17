@@ -1,12 +1,12 @@
 # AI_Draw_safemode
 
-<b>本插件为 AI_image_gen 的扩展插件，目前已内置无冲突 AI_image_gen(测试用)</b>
+<b>本插件为 AI_Draw_safemode的旧版本，图片为本地存储，目前归档，请使用测试版</b>
 
 ## 项目地址
 
 仓库:<a href="https://github.com/jiyemengmei/AI_Draw_safemode" target="_BLANK">https://github.com/jiyemengmei/AI_Draw_safemode</a>\
-最新测试版:<a href="https://github.com/jiyemengmei/AI_Draw_safemode/tree/dev/aidrawDB_dev" target="_BLANK">点击跳转</a>\
-> 测试版使用base64存取图片，原版则是以本地图片的形式存储
+最新测试版:<a href="https://github.com/jiyemengmei/AI_Draw_safemode" target="_BLANK">点击跳转</a>
+> 测试版使用base64存取图片，旧版则是以本地图片的形式存储
 ## 功能介绍
 
 通过上传图片参数至数据库，来实现快捷的图片预览、图片 TAG 获取、对应标签的 ai 图片生成，图片打分，分数排行显示等功能。若不想使用 ai 鉴黄，后续将更新纯净版。
@@ -90,3 +90,7 @@ PS:若不喜欢本字体可自行更换，但文件名必须是<code>fz.TTF</cod
 
 修复 BUG\
 新增图片分数显示，图片 ai 鉴黄筛选，分数排行榜
+
+### 2022/10/17
+
+归档，请使用dev分支的版本
