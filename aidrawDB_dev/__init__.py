@@ -17,6 +17,7 @@ from .another_code import *
 import traceback
 import json
 import time,calendar
+import threading
 import re
 import requests as req
 import sqlite3
@@ -80,8 +81,19 @@ default_ntags = get_config('default_ntags', 'ntags')
 bot_name = get_config('default', 'bot_name')
 bot_uid = get_config('default', 'bot_uid')
 trigger_word = get_config('default','trigger_word')
+    
+cd_stats = 0
 
+def time_handler():
+    global cd_stats
+    cd_stats = 0
 
+def TimerStart(num):
+    global cd_stats
+    if cd_stats == 0 and num==0:
+        cd_stats=1
+        timer=threading.Timer(12,time_handler)
+        timer.start()
 
 async def check_lmt(uid, num,cd):
     if uid in SUPERUSERS:
@@ -116,6 +128,7 @@ async def upload_header(bot, ev):
             base64_en,size=await gpic_get(pic_url)
             image_base64=str(base64_en).replace("b'","").replace("'","")
             seed,scale,tags,shape,ntags=await re_info(str(ev.message).replace("amp;",""))
+            tags,error_msg,tags_guolu=await process_tags(tags)
             if shape == '':
                 shape = await size_to_shape(size)
             if scale == '':
@@ -152,6 +165,7 @@ async def another_replymessage(bot, ev):
             my_msg = await bot.get_msg(self_id=int(self_id), message_id=int(msg_id))
             seed,scale,tags,shape,ntags=await re_info(str(my_msg["message"]).replace("amp;",""))
             tags=tags.replace(trigger_word,'')
+            tags,error_msg,tags_guolu=await process_tags(tags)
         if shape == '':
             shape = await size_to_shape(size)
         if scale == '':
@@ -214,6 +228,9 @@ async def score_all_rank(bot, ev):
 
 @sv.on_prefix((trigger_word))
 async def gen_pic(bot, ev):
+    if cd_stats == 1:
+        await bot.send(ev,"公共CD中，请等待10秒",at_sender=True)
+        return
     uid = ev['user_id']
     num = 0
     cd=int(flmt_cd)
@@ -236,15 +253,25 @@ async def gen_pic(bot, ev):
         tags = default_tags
         await bot.send(ev, f"将使用默认tag：{default_tags}", at_sender=True)
     try:
-        get_url = str(word2img_url + tags + token).replace("amp;","")
-        seed,scale,tags,shape,ntags=await re_info(str(ev.message).replace("amp;",""))
+        seed,scale,tags_now,shape,ntags=await re_info(str(ev.message).replace("amp;",""))
+        if ntags == '' and ntags_stats:
+            tags=tags+f'&ntags={default_ntags}'
+        get_url = str(word2img_url + tags + token).replace("amp;","").replace("&r18=1",'').replace("&R18=1",'')
         base64_en,pic,seed,scale,size=await http_get(get_url)
+        if type(scale) == str:
+            await bot.send(ev,scale,at_sender=True)
+            return
+        if type(seed) == str:
+            TimerStart(0)
+            await bot.send(ev,seed,at_sender=True)
+            return
         if base64_en==pic==seed==scale==size==0:
+            TimerStart(0)
             await bot.send(ev, f"网络或接口问题未获取到图片,自动重试", at_sender=True)
             for i in range(0,10):
-                flmt.start_cd(uid,10)
+                flmt.start_cd(uid,11)
                 base64_en,pic,seed,scale,size=await http_get(get_url)
-                await asyncio.sleep(10)
+                await asyncio.sleep(11)
                 if base64_en != 0:
                     break
                 if i == 9:
@@ -255,12 +282,10 @@ async def gen_pic(bot, ev):
             shape = await size_to_shape(size)
         if scale == '':
             scale = 11
-        if ntags == '' and ntags_stats:
-            ntags == default_ntags
         score = await check_imgscore(image_base64)
         if type(score) == int:
             if score != -1:
-                DBCounter()._insert_scoredata(scale,shape,tags,seed,image_base64,score,ntags)
+                DBCounter()._insert_scoredata(scale,shape,tags_now,seed,image_base64,score,ntags)
             else:
                 score = '无'
         else:
@@ -458,6 +483,17 @@ async def del_img(bot, ev):
         msg = DBCounter()._delete_scoredata(rowid)
         DBCounter()._vacuum_data()
         await bot.send(ev, msg, at_sender=True)
+    except Exception as e:
+        await bot.send(ev, f"报错:{e}",at_sender=True)
+        traceback.print_exc()
+
+@sv.on_fullmatch(('刷新数据库'))
+async def del_img(bot, ev):
+    try:
+        if not priv.check_priv(ev,priv.SUPERUSER):
+            await bot.finish(ev, "只有超级管理员才能使用", at_sender=True)
+        DBCounter()._vacuum_data()
+        await bot.send(ev, '清理完毕', at_sender=True)
     except Exception as e:
         await bot.send(ev, f"报错:{e}",at_sender=True)
         traceback.print_exc()

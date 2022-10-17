@@ -2,12 +2,12 @@ import requests
 from hoshino import aiorequests
 from .config import get_config
 
-api_key = get_config('Baidu', 'api_key')
-secret_key = get_config('Baidu', 'secret_key')
+API_KEY = get_config('Baidu', 'api_key')
+SECRET_KEY = get_config('Baidu', 'secret_key')
 baiduAI_check =get_config('Baidu', 'BaiduAI_check')
 
 if baiduAI_check == True:
-    host = f'https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id={api_key}&client_secret={secret_key}'
+    host = f'https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id={API_KEY}&client_secret={SECRET_KEY}'
     response = requests.get(host)
     access_token = response.json()["access_token"]
     request_url = "https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined"

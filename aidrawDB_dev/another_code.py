@@ -34,21 +34,18 @@ async def image_to_base64(data):
     return base64_en,image
 
 async def http_get(url):
-    try:
-        res = await aiorequests.get(url)
-        image = await res.content
-        img = Image.open(BytesIO(image))
-    except:
+    res = await aiorequests.get(url,timeout=20)
+    if res.status_code == 500:
         return 0,0,0,0,0
+    if res.status_code != 200:
+        return 0,0,0,'网络异常',0
+    img = Image.open(BytesIO(await res.content))
+    if not (info := img.info):
+        return 0,0,'公用CD中，请等待10秒',0,0
     size = f'{img.width}x{img.height}'
-    try:
-        load_data = json.loads(re.findall('{"steps".+?}', str(image))[0])
-        seed=str(load_data['seed'])
-        scale=str(load_data['scale'])
-    except:
-        seed=0
-        scale=11
-    base64_en,pic=await image_to_base64(image)
+    seed = json.loads(info['Comment'])['seed']
+    scale = json.loads(info['Comment'])['scale']
+    base64_en,pic=await image_to_base64(await res.content)
     return base64_en,pic,seed,scale,size
 
 async def gpic_get(url):
@@ -264,6 +261,7 @@ async def check_imgscore(data):
             return score
     elif baiduAI_check == True:
         score,porn = await porn_pic_index(data)
+        score =int(max(score,porn/2))
         if score >=75:
             return f"图片太涩了，分数高达{score}，不予显示"
         else:

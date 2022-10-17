@@ -6,14 +6,13 @@
     },
     "default": {
         "trigger_word":"测试",
-        "arrange_tags": true, 
-        "add_db": true,
+
         "quality":100,
         "bot_name":"梦美酱",
         "bot_uid":2854196306
     },
     "NovelAI": {
-        "api": "http://91.217.139.190:5010//",
+        "api": "http://91.217.139.190:5010/",
         "token": "" 
     },
     "Tencent": {
