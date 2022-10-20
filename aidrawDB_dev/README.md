@@ -53,13 +53,13 @@
 腾讯云：\
 一、安装依赖：\
 ①<code>pip install tencentcloud-sdk-python-ims</code>\
-②<code>pip install --upgrade tencentcloud-sdk-python-common tencentcloud-sdk-python-cvm</code>\
+②<code>pip install tencentcloud-sdk-python-common</code>\
 二、获取secretId和secretKey\
 1、https://console.cloud.tencent.com/cms 开启图像内容安全\
 2、进入策略管理，创建，名称随便填，Biztype名称填ai_image_check\
 3、行业分类填：社交/即时通讯/群聊\
 4、图片识别填：色情：性器官裸露/性行为\
-5、获取密钥：https://console.cloud.tencent.com/cam/capi\
+5、获取密钥：https://console.cloud.tencent.com/cam/capi \
 6、其中的SecretId和SecretKey填到config.json里对应位置
 
 百度智慧云：\
